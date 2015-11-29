@@ -1,0 +1,87 @@
+<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+
+ <div id="map"></div>
+
+<script type="text/javascript">
+var regex = /^hsl\(\s*([\-|\d|\.]*)\s*,\s*([\d|\.]*)%\s*,\s*([\d|\.]*)%/;
+function interpolate (start, end, step, precision) {
+  precision = precision != null ? precision : 0;
+  start = start.match(regex);
+  end = end.match(regex);
+  var
+    startH = +start[1],
+    startS = +start[2],
+    startL = +start[3],
+    endH   = +end[1],
+    endS   = +end[2],
+    endL   = +end[3];
+
+  var
+    h = (startH - (startH - endH) * step).toFixed(precision),
+    s = (startS - (startS - endS) * step).toFixed(precision),
+    l = (startL - (startL - endL) * step).toFixed(precision);
+
+  return 'hsl(' + h + ', ' + s + '%, ' + l + '%)';
+}
+
+function onMapZoom(e) {
+  $.ajax(
+    {
+      type: "POST",
+      url: "/hospitals",
+      data: {
+        lat1: map.getBounds()["_northEast"].lat,
+        lat2: map.getBounds()["_southWest"].lat,
+        lon1: map.getBounds()["_northEast"].lng,
+        lon2: map.getBounds()["_southWest"].lng,
+      },
+      success: function(json) {
+        console.log(json)
+        var hospitals = json; //$.parseJSON(json);
+        
+        //clear old markers
+        for(i=0;i<markers.length;i++) {
+          map.removeLayer(markers[i]);
+          map.removeLayer(circles[i]);
+        } 
+        markers = []
+        circles = []
+
+        //add new markers
+        for(i=0;i<hospitals.length;i++){
+            var marker = new L.marker([hospitals[i].latitude, hospitals[i].longitude]);
+
+            var red = 'hsl(0, 100%, 50%)';
+            var green = 'hsl(120, 100%, 50%)';
+
+            var int_color = interpolate(red, green, (hospitals[i].spending_score - 0.85) * 4);
+
+            var circle = new L.circle([hospitals[i].latitude, hospitals[i].longitude], ((18-map.getZoom()) * (18-map.getZoom()) * (18-map.getZoom())/3) * hospitals[i].performance_score, {
+                color: int_color,
+                fillColor: int_color,
+                fillOpacity: 0.2
+              }
+            )
+            markers.push(marker);
+            circles.push(circle)
+            map.addLayer(markers[i]);
+            map.addLayer(circles[i]);
+
+            markers[i].bindPopup(hospitals[i].name + "<br>" + hospitals[i].address + ", " + hospitals[i].city + " " + hospitals[i].state + ", " + hospitals[i].zip + "<br>" + hospitals[i].phone_number + "<br>Price score: " + hospitals[i].spending_score + "<br>Quality Score: " + hospitals[i].performance_score);
+        }
+      }
+    }
+  );
+}
+
+  var markers = []
+  var circles = []
+  var map = L.map('map').setView([41.85003, -87.65005], 13);
+  L.tileLayer('http://{s}.tiles.mapbox.com/v3/' + 'jakewalker.k81fmo1n' + '/{z}/{x}/{y}.png', {
+    attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://mapbox.com">Mapbox</a>',
+    maxZoom: 18
+}).addTo(map);
+  map.on('zoomend', onMapZoom);
+  onMapZoom();
+</script>

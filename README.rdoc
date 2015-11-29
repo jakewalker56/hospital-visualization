@@ -1,0 +1,9 @@
+== README
+
+This is a data visualization app I built for a data science hackathon in 2014.  It uses gmaps4rails to visualize hospital locations, cost, and quality score data on a map.
+
+There is a one-time setup step of running:
+
+rake recreate_hospitals
+
+This will translate the app/assets/data/hospital_summary.csv data into the Hospitals database.  Note that we currently limit hostpital import to Illinois due to a Google Maps API query limit.
